@@ -1,0 +1,5 @@
+tasks:
+  - init: pyenv install 3.11.7 -s && pyenv local 3.11.7 && pip install -r requirements.txt
+  - command: code --install-extension revaturePro.revature-python-labs
+  - command: for i in {1..6}; do chmod 600 ~/.ssh/id_rsa && chmod 644 ~/.ssh/id_rsa.pub && ssh-keyscan github.com >> ~/.ssh/known_hosts; sleep 20; done
+  - command: git remote set-url origin git@github.com:jpasunuri-oss/jpasunuri-oss-LANG-CL-DOCUMENT-RETRIEVAL-CHAIN.git && sed "s/\r$//" commit-command.sh | bash
