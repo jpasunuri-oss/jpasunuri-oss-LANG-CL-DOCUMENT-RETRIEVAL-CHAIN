@@ -15,6 +15,16 @@
     Note that the LangChain example does not use Chroma or HuggingFace resources, which the lab does.
 """
 import os
+from dotenv import load_dotenv
+from langchain_community.embeddings.huggingface import HuggingFaceInferenceAPIEmbeddings
+from langchain_community.vectorstores.chroma import Chroma
+from langchain.document_loaders import CSVLoader, DirectoryLoader
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+# Load dot_env 
+load_dotenv()
 
 HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 EMBED_ENDPOINT = os.getenv("EMBED_ENDPOINT")
@@ -30,7 +40,18 @@ def setup_csv_retriever():
         Make sure to return a VectorStoreRetriever object that has access to the lab_csv document
     """
     # TODO: load "lab_csv.csv" into a Chroma vector store and return a Vectorstore retriever with the document
-    pass
+    embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=HUGGINGFACEHUB_API_TOKEN, api_url=EMBED_ENDPOINT)
+
+    vdb = Chroma(embedding_function=embeddings)
+
+    loader = DirectoryLoader("src/resources", show_progress=True, loader_cls=CSVLoader, glob="**/*.csv")
+    docs = loader.load()
+    #for doc in docs:
+        #print(doc, end="\n\n")
+
+    vdb.add_documents(docs)
+
+    return vdb.as_retriever()
 
 def set_up_prompt_template():
     """
@@ -43,11 +64,19 @@ def set_up_prompt_template():
     {question}
     """
     # TODO: create and return a chat template for the LLM
-    pass
+    return ChatPromptTemplate.from_template(provided_template)
 
+from langchain_community.llms.huggingface_endpoint import HuggingFaceEndpoint
 def set_up_llm():
     # TODO: create and return an HuggingFaceEndpoint object
-    pass
+    return HuggingFaceEndpoint(
+        endpoint_url=os.environ['LLM_ENDPOINT'], 
+        huggingfacehub_api_token=HUGGINGFACEHUB_API_TOKEN, 
+        task="text2text-generation",
+        model_kwargs={
+            "max_new_tokens": 200
+        }
+    )
 
 def create_csv_chain():
     """
@@ -58,11 +87,30 @@ def create_csv_chain():
             - llm functionality
             - response output
     """
-    pass
+    return (
+        {"context" : setup_csv_retriever(), "question": RunnablePassthrough()} 
+        | set_up_prompt_template() 
+        | set_up_llm()
+        | StrOutputParser()
+    )
 
 
 
 if __name__ == "__main__":
     # Use this to manually test your code
-    pass
+    chain = create_csv_chain()
+    response = chain.invoke("Suggest a good action movie to watch")
+    #print(response, end="\n\n")
+    options = [
+        "The Dark Knight", 
+        "Inception", 
+        "Star Wars: Episode V - The Empire Strikes Back", 
+        "The Matrix"
+        ]
+    has_relevant_suggestion = False
+    for option in options:
+        if option in response:
+            has_relevant_suggestion = True
+            break
+    print(response.strip())
     
